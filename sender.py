@@ -1,9 +1,20 @@
 from ruamel.yaml import YAML
+from email.mime.text import MIMEText
 import logging, smtplib, os
 import traceback, ssl
+import pyodbc, argparse
+import Connect
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-e", "--emails_file", default="emails.yml")
+args = parser.parse_args()
+
 context = ssl.create_default_context()
+#context=ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+#context.options |= ssl.OP_NO_TLSv1
+#context.options |= ssl.OP_NO_TLSv1_1
 yaml = YAML(typ="safe")
-with open("emails_private.yml", "r") as opf:
+with open(args.emails_file, "r") as opf:
     configuration = yaml.load(opf)
 def err_raiser():
     print("this function will raise an exception")
@@ -25,38 +36,43 @@ def smtplib_email(emailconfig, smtpconfig, exception):
         email_body = emailconfig['body']
     else:
         email_body = emailconfig['body'].format(traceback_and_err_str(exception))
-    with smtplib.SMTP_SSL(smtpconfig['server'], smtpconfig['port'], context=context) as smtp:
-    #with smtplib.SMTP(smtpconfig['server'], smtpconfig['port']) as smtp:
-        smtp.login(smtpconfig["username"], smtpconfig["password"])
-        #smtp.starttls()
+    use_ssl = smtpconfig.get("ssl")
+    if use_ssl:
+        smtp = smtplib.SMTP_SSL(smtpconfig['server'], smtpconfig['port'], context=context)
+    else:
+        smtp = smtplib.SMTP(smtpconfig['server'], smtpconfig['port'])
+    with smtp:
+        smtp.set_debuglevel(1)
+        if use_ssl:
+            smtp.login(smtpconfig["username"], smtpconfig["password"])
+            #smtp.starttls(context=context)
         if isinstance(emailconfig["receivers"], str):
             receivers = (emailconfig["receivers"], )#Create a singleton tuple, tuple because tuples are more efficient than lists
         else:
             receivers = emailconfig["receivers"]
-        for receiver in receivers:
-            message = f"Subject: {emailconfig['subject']}\n\n{email_body}"
-        smtp.sendmail(smtpconfig["username"], receiver, message)
+        msg = MIMEText(email_body)
+        msg['From'] = smtpconfig['username']
+        msg['To'] = ','.join(receivers)
+        msg['Subject'] = emailconfig['subject']
+        smtp.send_message(msg)
 
 def handle_success():
+    print("handling success")
     smtplib_email(configuration["success"], configuration["smtp"], None)
 
 def handle_exception(err):
+    print("handling exception")
     smtplib_email(configuration["error"], configuration["smtp"], err)
 
-def Connect():
-    #replace this function with your code.
-    #here, to test error execution call err_raiser(), and to test correct execution test correct_executor()
-    #err_raiser()
-    correct_executor()
 try:
-    Connect()
+    con = pyodbc.connect('Driver=Amazon RedShift (x86);UID=app_r_server;PWD=GUahXz59VhP4DKVQvM9YcyJCe;Server=golda.ceefb38tkh0v.us-west-2.redshift.amazonaws.com;Database=dw')
+    Connect.read(con)
 except Exception as exc:
-    logging.exception("An exception occured during Connect():")
+    logging.exception("An exception occurred during Connect():")
     #raise ValueError(2)
     try:
         handle_exception(exc)
     except Exception as emailexception:
         logging.exception("An exception occured during the report e-mail sending:")
-        assert 0, traceback_and_err_str(emailexception)
 else:
     handle_success()
