@@ -3,7 +3,6 @@ from email.mime.text import MIMEText
 import logging, smtplib, os
 import traceback, ssl
 import pyodbc, argparse
-import Connect
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e", "--emails_file", default="emails.yml")
@@ -16,22 +15,15 @@ context = ssl.create_default_context()
 yaml = YAML(typ="safe")
 with open(args.emails_file, "r") as opf:
     configuration = yaml.load(opf)
-def err_raiser():
-    print("this function will raise an exception")
-    s = 5/0
-def correct_executor():
-    print("this function will execute without exceptions")
-
 def traceback_str(exc):
     """Use this function to get the traceback string for an exception"""
     return "".join(traceback.format_tb(exc.__traceback__))
 def traceback_and_err_str(exc):
     """Use this function to get the traceback string for an exception"""
     return "\n".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
-    #return "".join(traceback.format_tb(exc.__traceback__))+"\n"+"\n".join(traceback.format_exception_only(type(exc), emailexception))
 def smtplib_email(emailconfig, smtpconfig, exception):
     #If exception is None, this function is deemed to be reporting a succesful run, else it is deemed to
-    #be reportingh an error
+    #be reporting an error
     if exception is None:
         email_body = emailconfig['body']
     else:
@@ -65,6 +57,7 @@ def handle_exception(err):
     smtplib_email(configuration["error"], configuration["smtp"], err)
 
 try:
+    import Connect
     con = pyodbc.connect('Driver=Amazon RedShift (x86);UID=app_r_server;PWD=GUahXz59VhP4DKVQvM9YcyJCe;Server=golda.ceefb38tkh0v.us-west-2.redshift.amazonaws.com;Database=dw')
     Connect.read(con)
 except Exception as exc:
