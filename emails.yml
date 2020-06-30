@@ -1,0 +1,19 @@
+smtp:
+  server: smtp.gmail.com
+  port: 465
+  #port: 25
+  username: <your_user>
+  password: <your_password>
+success:
+  subject: "Sucessful execution"
+  body: "The command was successful"
+  receivers:
+  - kmcguire@cricut.com
+  - lucioric2000@gmail.com
+error:
+  #The program uses Formated String literals. with the exception object as the first substitutor.
+  subject: "Sucessful execution"
+  body: "An error has occured:\n{0}.\nCheck the program"
+  receivers:
+  - kmcguire@cricut.com
+  - lucioric2000@gmail.com
